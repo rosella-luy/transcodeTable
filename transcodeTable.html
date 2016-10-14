@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Transcode Table</title>
+	<link rel="stylesheet" href="css/transcodeTable.css"/>
+	<link href="css/bootstrap.min.css" rel="stylesheet">
+	<link href="css/font-awesome.min.css" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" media="all" href="css/daterangepicker-bs3.css" />
+    <script type="text/javascript" src="js/jquery-1.11.3.min.js"></script>
+    <script type="text/javascript" src="js/moment.min.js"></script>
+    <script type="text/javascript" src="js/daterangepicker.js"></script>
+	<script>
+		var newestDate,beforeDate,newestHour,navlist;
+		function Ajax(model,sendData,url,type){
+			var data;
+			function createXmlHttpRequest(){    
+			    if(window.ActiveXObject){ //如果是IE浏览器    
+			        return new ActiveXObject("Microsoft.XMLHTTP");    
+			    }else if(window.XMLHttpRequest){ //非IE浏览器    
+			        return new XMLHttpRequest();    
+			    }    
+			} 
+			var xmlhttp = createXmlHttpRequest();   
+		    xmlhttp.onreadystatechange = function(){
+			    if(xmlhttp.readyState == 4 && xmlhttp.status == 200){  
+			        data = $.parseJSON(xmlhttp.responseText);
+			        console.log(data);
+			        if(model=='init'){
+			        	newestDate = data.content.search_condition.date;
+			        	newestHour = data.content.search_condition.hour;
+			        	beforeDate = Number(newestDate)-1;
+			        	navlist = data.navList;
+			        	navList(navlist);
+			        }
+			        if(model!='imgtable'){
+			        	tableHtml(data.content.tabledata);
+			        }
+			        if(model!='datatable'){
+			        	imgtable(data.content.imgdata);
+			        }
+			        $('.cover').hide();
+		    		$('.loader').hide();      
+			    }
+		    };
+		    if(model!='init'){
+		    	$('.cover').show();
+		    	$('.loader').show();
+		    }  
+		    xmlhttp.open(type,url,true);   
+		    xmlhttp.send(null);
+		}
+		Ajax('init','','http://172.16.39.25:8080/api/v1/statistics/All','GET');
+	</script>
+</head>
+<body class="dataPage">
+	<h1 class="title">TRANSCODER HOURLY STATISTICS</h1>
+	<div class="barModel">
+		<h2 class="title">TREND</h2>
+		<div class="selectBox">
+			<p><button class="checked">HOUR</button></p>
+			<p><button>DAY</button></p>
+			<p>
+				<label>TimeCircle:</label>
+				<input type="text" style="width: 400px" name="reservation" id="reservationtime" class="form-control" value=""  class="span4"/>
+			</p>
+			<p>
+				<label>Source:</label>
+				<select name="source" id="imgsource" class="Source">
+				</select>
+			</p>
+			<button class="search" model="imgtable">Search</button>
+		</div> 
+		<div id="container" style="height: 400px"></div>
+	</div>
+	<div class="tableModel">
+		<h2 class="title">HOURLY DETAIL</h2>
+		<div class="selectBox">
+			<p>
+				<label>Date:</label>
+				<select name="date" id="Date">
+				</select>
+			</p>
+			<p>
+				<label>Hour:</label>
+				<select name="hour" id="Hour">
+				</select>
+			</p>
+			<p>
+				<label>Source:</label>
+				<select name="source" id="datasource" class="Source">
+				</select>
+			</p>
+			<button class="search" model="datatable">Search</button>
+		</div>
+		<div class="table nav">
+			<ul class="row nav-title">
+				<li>
+					<label>Overall_Requests</label>
+				</li>
+				<li>
+					<label>WhiteList</label>
+				</li>
+				<li>
+					<label>WhiteList_Rate</label>
+				</li>
+				<li>
+					<label>Succeed_Requests</label>
+				</li>
+				<li>
+					<label>Succeed_Rate</label>
+				</li>
+			</ul>
+			<ul class="row nav-content" id="navContent">
+			</ul>
+		</div>
+		<div class="table data">
+			<ul class="row data-title">
+				<li class="index">Index</li>
+				<li class="url">URL</li>
+				<li class="overall-error">Overall_Error</li>
+				<li class="error-type type-title">
+					<span>Error_Num</span>
+					<span>Error_Name</span>
+				</li>
+			</ul>
+			<div class="data-content" id="dataContent">
+			</div>
+		</div>
+	</div>
+	<div class="cover"></div>
+	<div class="loader">
+        <div class="loader-inner ball-spin-fade-loader">
+          <div></div>
+          <div></div>
+          <div></div>
+          <div></div>
+          <div></div>
+          <div></div>
+          <div></div>
+          <div></div>
+        </div>
+    </div>
+	<script src="js/highcharts.js"></script>
+	<script src="js/highcharts-3d.js"></script>
+	<script src="js/exporting.js"></script>
+	<script>
+		function findSource(){
+			var source = [],start,end,sourcehtml;
+			var Start = Number($('#reservationtime').attr('start'));
+			var End   = Number($('#reservationtime').attr('end'));
+			for(var i in navlist){
+				i = Number(i);
+				if(i>Start&&i<End||i==Start||i==End){
+					for(var j in navlist[i]){
+						for(var s in navlist[i][j]){
+							source.push(navlist[i][j][s]);
+						}
+					}
+				}
+			}
+			source = jQuery.unique(source);
+			for(var i=0;i<source.length;i++){
+				if(source[i]=='OVERALL'){
+					sourcehtml += '<option selected>'
+				}else{
+					sourcehtml += '<option>';
+				}
+				sourcehtml += source[i]+'</option>';
+			}
+			$('#imgsource').html(sourcehtml);	
+		}
+		function hourHtml(date){
+			var hourhtml = '';
+			for(var j in date){
+				hourhtml += '<option>'+j+'</option>';
+			}
+			$('#Hour').html(hourhtml);
+		}
+		function sourceHtml(hour){
+			var sourcehtml = '';
+			for(var s=0;s<hour.length;s++){
+				if(hour[s]=='OVERALL'){
+					sourcehtml += '<option selected>'
+				}else{
+					sourcehtml += '<option>';
+				}
+				sourcehtml += hour[s]+'</option>';
+			}
+			$('#datasource').html(sourcehtml);
+		}
+		function navList(nav,type){
+			var datehtml = '',hourhtml = '',sourcehtml = '';
+			var date = newestDate;
+			var hour = newestHour;
+			for(var i in nav){
+				datehtml += '<option>'+i+'</option>';
+			}
+			hourHtml(nav[date]);
+			sourceHtml(nav[date][hour]);
+			$('#reservationtime').attr({
+				'value':beforeDate+' ~ '+newestDate,
+				'start':beforeDate,
+				'end':newestDate
+			});
+			findSource();
+			$('#Date').html(datehtml);
+		}
+		function tableHtml(table){
+			var numhtml = '<li><span>'+table.overall_requests+'</span></li><li><span>'+table.whitelist+'</span></li><li><span>'+parseInt((table.whitelist/table.overall_requests)*100)+'%</span></li><li><span>'+table.succeed_requests+'</span></li><li><span>'+parseInt((table.succeed_requests/table.overall_requests)*100)+'%</span></li>';
+			$('#navContent').html(numhtml);
+			var list = table.data?table.data:{};
+			var listhtml = '';
+			var index = 1;
+			for(var i in list){
+				listhtml += '<ul class="row"><li class="index"><span>'+
+							(index++)+'</span></li><li class="url"><span>'+
+							i+'</span></li><li class="overall-error"><span>'+
+							list[i].errornum+'</span></li><li class="error-type"><div class="type-content">';
+				var error = list[i];
+				for(var e in error){
+					if(e!='errornum'){
+						listhtml += '<p><span>'+error[e]+'</span><span>'+e+'</span></p>';
+					}
+				}
+				listhtml += '</div></li></ul>';
+			}
+			$('#dataContent').html(listhtml);
+		}
+		function imgtable(Img){
+			var arrx = [],arrpass = [],arrfail = [],arrnoin = [];
+			var type = $("button.checked").text().toLowerCase();
+			function getImg(imgdata){
+				for(var item in imgdata){
+					if(item=='pass'){
+						arrpass.push(imgdata[item]);
+					}else if(item=='fail'){
+						arrfail.push(imgdata[item]);
+					}else if(item=='notinWL'){
+						arrnoin.push(imgdata[item]);
+					}
+				}
+			}
+			for(var i in Img){
+				if(type=='day'){
+					arrx.push(i);
+					getImg(Img[i]);
+				}else if(type=='hour'){
+					for(var j in Img[i]){
+						arrx.push(i+' '+j);
+						getImg(Img[i][j]);
+					}
+				}
+			}
+			var chart = $('#container').highcharts();
+	        chart.xAxis[0].setCategories(arrx);
+	        for(var i=0;i<chart.series.length;i++){
+	        	var item = chart.series[i];
+	        	if(item.name=='PASS'){
+	        		item.update({data: arrpass});
+	        	}else if(item.name=='FAIL'){
+	        		item.update({data: arrfail});
+	        	}else if(item.name=='Not In White List'){
+	        		item.update({data: arrnoin});
+	        	}
+	        }
+	    }
+		$(function(){
+			$('#container').highcharts({
+		        chart: {
+		            type: 'column'
+		        },
+		        title: {
+		            text: ''
+		        },
+		        xAxis: {
+		            categories: []
+		        },
+		        yAxis: {
+		            allowDecimals: false,
+		            min: 0,
+		            title: {
+		                text: ''
+		            },
+		            stackLabels: {
+		                enabled: true,
+		                style: {
+		                    fontWeight: 'bold',
+		                    color: (Highcharts.theme && Highcharts.theme.textColor) || 'gray'
+		                }
+		            }
+		        },
+		        tooltip: {
+		            headerFormat: '<b>{point.key}</b><br>',
+		            pointFormat: '<span style="color:＃000000">\u25CF</span> OVERALL: {point.stackTotal}<br><span style="color:{series.color}">\u25CF</span> {series.name}: {point.y}'
+		        },
+		        plotOptions: {
+		            column: {
+		                stacking: 'normal',
+		                depth: 60,
+		                dataLabels: {
+		                    enabled: true,
+		                    x: 0,
+		                    y: 0,
+		                    color: (Highcharts.theme && Highcharts.theme.dataLabelsColor) || 'black',
+		                    style: {
+		                        textShadow: '0 0 5px white'
+		                    }
+		                }
+		            }
+		        },
+		        exporting: {
+		            enabled: false
+		        },
+		        series: [{
+		            name: 'Not In White List',
+		            color: '#C0C0C0',
+		            data: [],
+		        }, {
+		            name: 'FAIL',
+		            color: '#FF4500',
+		            data: [],
+		        }, {
+		            name: 'PASS',
+		            color: '#66CDAA',
+		            data: [],
+		        }]
+		    });
+			$('#reservationtime').daterangepicker({
+				timePicker: true,
+				timePickerIncrement: 60,
+				format: 'YYYYMMDD',
+				minDate: '20160701',
+				maxDate: newestDate,
+				timePicker: false
+			});
+			$('.selectBox p button').on('click',function(){
+				$('button.checked').removeClass('checked');
+				$(this).addClass('checked');
+			});
+			$('#Date').on('change',function(){
+				hourHtml(navlist[$(this).val()]);
+				sourceHtml(navlist[$(this).val()][$('#Hour').val()]);
+			});
+			$('#Hour').on('change',function(){
+				sourceHtml(navlist[$('#Date').val()][$(this).val()]);
+			});
+			$('.search').on('click',function(){
+				var senddata,url;
+				var model = $(this).attr('model');
+				if(model=='imgtable'){
+					senddata = 'source='+$("#imgsource").val()+'&dtStart='+$("#reservationtime").attr("start")+
+								'&dtEnd='+$("#reservationtime").attr("end")+'&timeTypeStr='+$("button.checked").text().toLowerCase();
+					url = 'http://172.16.39.25:8080/api/v1/statistics/Img?'+senddata;
+				}else if(model=='datatable'){
+					senddata = 'date='+$("#Date").val()+'&hour='+$("#Hour").val()+'&source='+$("#datasource").val();
+					url = 'http://172.16.39.25:8080/api/v1/statistics/Table?'+senddata;
+				}
+				Ajax(model,senddata,url,'GET');
+			});
+		});
+	</script>
+</body>
+</html>
